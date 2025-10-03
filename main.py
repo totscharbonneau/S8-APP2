@@ -62,8 +62,7 @@ class ConveyorCnnTrainer():
             # À compléter
             raise NotImplementedError()
         elif task == 'segmentation':
-            # À compléter
-            raise NotImplementedError()
+            return torch.nn.CrossEntropyLoss()
         else:
             raise ValueError('Not supported task')
 
@@ -246,11 +245,35 @@ class ConveyorCnnTrainer():
                 Si un 0 est présent à (i, 2), aucune croix n'est présente dans l'image i.
         :return: La valeur de la fonction de coût pour le lot
         """
+        match task:
+            case "classification":
+                optimizer.zero_grad()
+                outputs = model(image)
+                loss = criterion(outputs, class_labels)
+                loss.backward()
+                optimizer.step()
+
+                metric.accumulate(outputs, class_labels)
+
+                return loss
+
+            case "detection":
+                raise NotImplementedError()
+            case "segmentation":
+                optimizer.zero_grad()
+                outputs = model(image)
+                loss = criterion(outputs, segmentation_target)
+                loss.backward()
+                optimizer.step()
+
+                metric.accumulate(outputs, segmentation_target)
+
+                return loss
 
 
 
-        # À compléter
-        raise NotImplementedError()
+
+
 
     def _test_batch(self, task, model, criterion, metric, image, segmentation_target, boxes, class_labels):
         """
@@ -290,8 +313,27 @@ class ConveyorCnnTrainer():
         :return: La valeur de la fonction de coût pour le lot
         """
 
-        # À compléter
-        raise NotImplementedError()
+        match task:
+            case "classification":
+                with torch.no_grad():
+                    outputs = model(image)  # (N, 3), already sigmoid in last layer
+                    loss = criterion(outputs, class_labels.float())
+
+                    # update metric
+                    metric.accumulate(outputs, class_labels)
+
+                return loss
+
+            case "detection":
+                raise NotImplementedError()
+            case "segmentation":
+                outputs = model(image)  # (N, 3), already sigmoid in last layer
+                loss = criterion(outputs, segmentation_target)
+
+                # update metric
+                metric.accumulate(outputs, segmentation_target)
+
+                return loss
 
 
 if __name__ == '__main__':
