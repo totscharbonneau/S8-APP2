@@ -10,6 +10,7 @@ from torchvision import transforms
 from dataset import ConveyorSimulator
 from metrics import AccuracyMetric, MeanAveragePrecisionMetric, SegmentationIntersectionOverUnionMetric
 from visualizer import Visualizer
+from models.classification_network import Class_nn
 
 TRAIN_VALIDATION_SPLIT = 0.9
 CLASS_PROBABILITY_THRESHOLD = 0.5
@@ -44,8 +45,7 @@ class ConveyorCnnTrainer():
 
     def _create_model(self, task):
         if task == 'classification':
-            # À compléter
-            raise NotImplementedError()
+            return Class_nn()
         elif task == 'detection':
             # À compléter
             raise NotImplementedError()
@@ -57,8 +57,7 @@ class ConveyorCnnTrainer():
 
     def _create_criterion(self, task):
         if task == 'classification':
-            # À compléter
-            raise NotImplementedError()
+            return torch.nn.BCELoss()
         elif task == 'detection':
             # À compléter
             raise NotImplementedError()
@@ -161,6 +160,7 @@ class ConveyorCnnTrainer():
 
                 train_loss += loss.item()
 
+
             # Affichage après la batch
             train_loss = train_loss / len(dataset_train)
             epochs_train_losses.append(train_loss)
@@ -246,6 +246,8 @@ class ConveyorCnnTrainer():
                 Si un 0 est présent à (i, 2), aucune croix n'est présente dans l'image i.
         :return: La valeur de la fonction de coût pour le lot
         """
+
+
 
         # À compléter
         raise NotImplementedError()
