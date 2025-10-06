@@ -4,7 +4,7 @@ class Class_nn(nn.Module):
     def __init__(self):
         super(Class_nn, self).__init__()
 
-        self.conv1 = nn.Conv2d(1,16,3,1,1)
+        self.conv1 = nn.Conv2d(1,16,5,1,1)
         self.relu1 = nn.ReLU()
         self.maxpool1 = nn.MaxPool2d(2,2,0)
         self.conv2 = nn.Conv2d(16,32,3,1,1)
@@ -13,7 +13,7 @@ class Class_nn(nn.Module):
         self.conv3 = nn.Conv2d(32,64,3,1,1)
         self.relu3 = nn.ReLU()
         self.maxpool3 = nn.MaxPool2d(2, 2, 0)
-        self.conv4 = nn.Conv2d(64,128,3,1,1)
+        self.conv4 = nn.Conv2d(64,128,2,1,1)
         self.relu4 = nn.ReLU()
         self.maxpool4 = nn.MaxPool2d(2, 2, 0)
 
@@ -22,7 +22,7 @@ class Class_nn(nn.Module):
         self.fc1 = nn.Linear(1152, 3)
         # self.relu5 = nn.ReLU()
         # self.fc2 = nn.Linear(256,3)
-        self.sigma = nn.Sigmoid()
+        # self.sigma = nn.Sigmoid()
 
 
     def forward(self,x):
@@ -44,8 +44,8 @@ class Class_nn(nn.Module):
         x = self.fc1.forward(x)
         # x = self.relu5.forward(x)
         # x = self.fc2.forward(x)
-        output = self.sigma.forward(x)
-        return output
+        # output = self.sigma.forward(x)
+        return x
 
 
     def count_parameters(self):

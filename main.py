@@ -1,7 +1,7 @@
 #! usr/bin/python3
 import argparse
 import os
-
+import time
 import numpy as np
 import torch
 import torch.optim as optim
@@ -27,7 +27,12 @@ class ConveyorCnnTrainer():
         self._device = torch.device('cuda' if use_cuda else 'cpu')
         seed = np.random.rand()
         torch.manual_seed(seed)
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([
+            # transforms.ToPILImage(),  # convert numpy -> PIL
+            # transforms.RandomHorizontalFlip(p=0.5),
+            # transforms.RandomVerticalFlip(p=0.5),
+            transforms.ToTensor(),
+        ])
 
         # Generation des 'path'
         self._dir_path = os.path.dirname(__file__)
@@ -43,6 +48,7 @@ class ConveyorCnnTrainer():
         print(self._model)
         print('\nNumber of parameters in the model : ', sum(p.numel() for p in self._model.parameters()))
 
+
     def _create_model(self, task):
         if task == 'classification':
             return Class_nn()
@@ -57,7 +63,7 @@ class ConveyorCnnTrainer():
 
     def _create_criterion(self, task):
         if task == 'classification':
-            return torch.nn.BCELoss()
+            return torch.nn.BCEWithLogitsLoss()
         elif task == 'detection':
             # À compléter
             raise NotImplementedError()
@@ -77,7 +83,13 @@ class ConveyorCnnTrainer():
             raise ValueError('Not supported task')
 
     def test(self):
-        params_test = {'batch_size': self._args.batch_size, 'shuffle': False, 'num_workers': 4}
+        params_test = {
+            'batch_size': self._args.batch_size,
+            'shuffle': False,
+            'num_workers': 4,
+            'pin_memory': True,
+            'persistent_workers': True
+        }
 
         dataset_test = ConveyorSimulator(self._test_data_path, self.transform)
         test_loader = torch.utils.data.DataLoader(dataset_test, **params_test)
@@ -117,8 +129,8 @@ class ConveyorCnnTrainer():
         best_validation = 0
         nb_worse_validation = 0
 
-        params_train = {'batch_size': self._args.batch_size, 'shuffle': True, 'num_workers': 4}
-        params_validation = {'batch_size': self._args.batch_size, 'shuffle': False, 'num_workers': 4}
+        params_train = {'batch_size': self._args.batch_size, 'shuffle': True, 'num_workers': 4, 'pin_memory': True}
+        params_validation = {'batch_size': self._args.batch_size, 'shuffle': False, 'num_workers': 4, 'pin_memory': True}
 
         dataset_trainval = ConveyorSimulator(self._train_data_path, self.transform)
         dataset_train, dataset_validation = torch.utils.data.random_split(dataset_trainval,
@@ -133,7 +145,7 @@ class ConveyorCnnTrainer():
         print('Training data : ', len(dataset_train))
         print('Validation data : ', len(dataset_validation))
 
-        optimizer = optim.Adam(self._model.parameters(), lr=self._args.lr)
+        optimizer = optim.Adam(self._model.parameters(), lr=self._args.lr,weight_decay=1e-4)
         train_metric = self._create_metric(self._args.task)
         validation_metric = self._create_metric(self._args.task)
 
@@ -143,12 +155,19 @@ class ConveyorCnnTrainer():
         for epoch in range(1, self._args.epochs + 1):
             print('\nEpoch: {}'.format(epoch))
             # Entraînement
+            epoch_start = time.time()
+
+            # Training
+            data_time = 0
+            compute_time = 0
+
             self._model.train()
             train_loss = 0
             train_metric.clear()
 
             # Boucle pour chaque batch
             for image, segmentation_target, boxes, class_labels in train_loader:
+                iter_start = time.time()
                 image = image.to(self._device)
                 segmentation_target = segmentation_target.to(self._device)
                 boxes = boxes.to(self._device)
@@ -157,8 +176,19 @@ class ConveyorCnnTrainer():
                 loss = self._train_batch(self._args.task, self._model, self._criterion, train_metric, optimizer,
                                          image, segmentation_target, boxes, class_labels)
 
+                data_time += time.time() - iter_start
+                compute_start = time.time()
+
                 train_loss += loss.item()
 
+                if self._device.type == 'cuda':
+                    torch.cuda.synchronize()  # Wait for GPU to finish
+
+                compute_time += time.time() - compute_start
+
+            epoch_time = time.time() - epoch_start
+            # print(f'Epoch {epoch}: Total={epoch_time:.2f}s, Data={data_time:.2f}s, Compute={compute_time:.2f}s')
+            # print(f'GPU utilization: {compute_time / epoch_time * 100:.1f}%')
 
             # Affichage après la batch
             train_loss = train_loss / len(dataset_train)
@@ -317,7 +347,7 @@ class ConveyorCnnTrainer():
             case "classification":
                 with torch.no_grad():
                     outputs = model(image)  # (N, 3), already sigmoid in last layer
-                    loss = criterion(outputs, class_labels.float())
+                    loss = criterion(outputs, class_labels)
 
                     # update metric
                     metric.accumulate(outputs, class_labels)
