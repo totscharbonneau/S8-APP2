@@ -11,6 +11,7 @@ from dataset import ConveyorSimulator
 from metrics import AccuracyMetric, MeanAveragePrecisionMetric, SegmentationIntersectionOverUnionMetric
 from visualizer import Visualizer
 from models.classification_network import Class_nn
+from models.detection_network import Det_nn
 from lossDetection import LossDetection
 
 TRAIN_VALIDATION_SPLIT = 0.9
@@ -55,7 +56,7 @@ class ConveyorCnnTrainer():
             return Class_nn()
         elif task == 'detection':
             # À compléter
-            return LossDetection()
+            return Det_nn()
         elif task == 'segmentation':
             # À compléter
             raise NotImplementedError()
@@ -66,8 +67,7 @@ class ConveyorCnnTrainer():
         if task == 'classification':
             return torch.nn.BCEWithLogitsLoss()
         elif task == 'detection':
-            # À compléter
-            raise NotImplementedError()
+            return LossDetection()
         elif task == 'segmentation':
             return torch.nn.CrossEntropyLoss()
         else:
@@ -289,7 +289,16 @@ class ConveyorCnnTrainer():
                 return loss
 
             case "detection":
-                raise NotImplementedError()
+                optimizer.zero_grad()
+                outputs = model(image)
+                loss = criterion(outputs, boxes)
+                loss.backward()
+                optimizer.step()
+
+                metric.accumulate(outputs, boxes)
+
+                return loss
+
             case "segmentation":
                 optimizer.zero_grad()
                 outputs = model(image)
@@ -356,9 +365,16 @@ class ConveyorCnnTrainer():
                 return loss
 
             case "detection":
-                raise NotImplementedError()
+                with torch.no_grad():
+                    outputs = model(image)  # (N, 3)
+                    loss = criterion(outputs, boxes)
+
+                    # update metric
+                    metric.accumulate(outputs, boxes)
+
+                return loss
             case "segmentation":
-                outputs = model(image)  # (N, 3), already sigmoid in last layer
+                outputs = model(image)
                 loss = criterion(outputs, segmentation_target)
 
                 # update metric
@@ -375,7 +391,7 @@ if __name__ == '__main__':
                         help='The CNN task', required=True)
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and testing (default: 32)')
     parser.add_argument('--epochs', type=int, default=20, help='number of epochs for training (default: 20)')
-    parser.add_argument('--lr', type=float, default=4e-4, help='learning rate used for training (default: 4e-4)')
+    parser.add_argument('--lr', type=float, default=2e-4, help='learning rate used for training (default: 4e-4)')
     parser.add_argument('--use_gpu', action='store_true', help='use the gpu instead of the cpu')
     parser.add_argument('--early_stop', type=int, default=25,
                         help='number of worse validation loss before quitting training (default: 25)')
