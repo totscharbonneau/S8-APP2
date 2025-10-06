@@ -26,6 +26,7 @@ class ConveyorSimulator(Dataset):
             self._metadata = json.load(f)
 
     def __len__(self):
+        # return 4
         return len(self._metadata.keys())
 
     def __getitem__(self, index):

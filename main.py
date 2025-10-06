@@ -11,6 +11,7 @@ from dataset import ConveyorSimulator
 from metrics import AccuracyMetric, MeanAveragePrecisionMetric, SegmentationIntersectionOverUnionMetric
 from visualizer import Visualizer
 from models.classification_network import Class_nn
+from lossDetection import LossDetection
 
 TRAIN_VALIDATION_SPLIT = 0.9
 CLASS_PROBABILITY_THRESHOLD = 0.5
@@ -54,7 +55,7 @@ class ConveyorCnnTrainer():
             return Class_nn()
         elif task == 'detection':
             # À compléter
-            raise NotImplementedError()
+            return LossDetection()
         elif task == 'segmentation':
             # À compléter
             raise NotImplementedError()
