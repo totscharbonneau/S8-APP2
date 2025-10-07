@@ -25,11 +25,12 @@ class Det_nn(nn.Module):
         self.maxpool_4 = nn.MaxPool2d(2, 2)  # (13x13) → (6x6)
 
         self.flatten_5 = nn.Flatten()
-        self.linear_6 = nn.Linear(64 * 6 * 6, 128)
+        self.linear_6 = nn.Linear(64 * 6 * 6, 64)
         self.relu_6 = nn.ReLU()
-        # self.linear_7 = nn.Linear(512, 128)
+        # self.linear_7 = nn.Linear(128, 64)
         # self.relu_7 = nn.ReLU()
-        self.linear_8 = nn.Linear(128, n_objects * n_outputs_per_object)
+        self.linear_8 = nn.Linear(64, n_objects * n_outputs_per_object)
+        # self.dropout = nn.Dropout(0.4)
 
     def forward(self, x):
         x= self.conv_1.forward(x)
@@ -50,11 +51,14 @@ class Det_nn(nn.Module):
         x= self.flatten_5.forward(x)
         x= self.linear_6.forward(x)
         x= self.relu_6.forward(x)
+        # x = self.dropout(x)
+        # x = self.linear_7.forward(x)
+        # x = self.relu_7.forward(x)
         x= self.linear_8.forward(x)
         x = x.view(-1,self.n_obj,self.n_out)
         x_out = torch.cat([
             torch.sigmoid(x[:, :, 0:4]),  # objectness, x, y, wh
-            x[:, :, 4:7]  # class1, class2, class3 (raw logits)
+            torch.sigmoid(x[:, :, 4:7])  # class1, class2, class3 (raw logits)
         ], dim=-1)
         return x_out
 

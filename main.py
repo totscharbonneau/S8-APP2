@@ -146,7 +146,10 @@ class ConveyorCnnTrainer():
         print('Training data : ', len(dataset_train))
         print('Validation data : ', len(dataset_validation))
 
-        optimizer = optim.Adam(self._model.parameters(), lr=self._args.lr,weight_decay=1e-4)
+        optimizer = optim.Adam(self._model.parameters(),
+                               lr=self._args.lr,
+                               # weight_decay=1e-4
+                               )
         train_metric = self._create_metric(self._args.task)
         validation_metric = self._create_metric(self._args.task)
 
@@ -156,11 +159,6 @@ class ConveyorCnnTrainer():
         for epoch in range(1, self._args.epochs + 1):
             print('\nEpoch: {}'.format(epoch))
             # Entraînement
-            epoch_start = time.time()
-
-            # Training
-            data_time = 0
-            compute_time = 0
 
             self._model.train()
             train_loss = 0
@@ -168,7 +166,6 @@ class ConveyorCnnTrainer():
 
             # Boucle pour chaque batch
             for image, segmentation_target, boxes, class_labels in train_loader:
-                iter_start = time.time()
                 image = image.to(self._device)
                 segmentation_target = segmentation_target.to(self._device)
                 boxes = boxes.to(self._device)
@@ -177,19 +174,12 @@ class ConveyorCnnTrainer():
                 loss = self._train_batch(self._args.task, self._model, self._criterion, train_metric, optimizer,
                                          image, segmentation_target, boxes, class_labels)
 
-                data_time += time.time() - iter_start
-                compute_start = time.time()
 
                 train_loss += loss.item()
 
                 if self._device.type == 'cuda':
                     torch.cuda.synchronize()  # Wait for GPU to finish
 
-                compute_time += time.time() - compute_start
-
-            epoch_time = time.time() - epoch_start
-            # print(f'Epoch {epoch}: Total={epoch_time:.2f}s, Data={data_time:.2f}s, Compute={compute_time:.2f}s')
-            # print(f'GPU utilization: {compute_time / epoch_time * 100:.1f}%')
 
             # Affichage après la batch
             train_loss = train_loss / len(dataset_train)
@@ -222,6 +212,8 @@ class ConveyorCnnTrainer():
                 torch.save(self._model.state_dict(), self._weights_path)
             else:
                 nb_worse_validation += 1
+
+            # scheduler.step(validation_metric_value)
 
             epochs_validation_losses.append(validation_loss)
             epochs_validation_metrics.append(validation_metric.get_value())
@@ -281,10 +273,9 @@ class ConveyorCnnTrainer():
                 optimizer.zero_grad()
                 outputs = model(image)
                 loss = criterion(outputs, class_labels)
+                metric.accumulate(outputs, class_labels)
                 loss.backward()
                 optimizer.step()
-
-                metric.accumulate(outputs, class_labels)
 
                 return loss
 
@@ -305,14 +296,8 @@ class ConveyorCnnTrainer():
                 loss = criterion(outputs, segmentation_target)
                 loss.backward()
                 optimizer.step()
-
                 metric.accumulate(outputs, segmentation_target)
-
                 return loss
-
-
-
-
 
 
     def _test_batch(self, task, model, criterion, metric, image, segmentation_target, boxes, class_labels):
@@ -391,7 +376,7 @@ if __name__ == '__main__':
                         help='The CNN task', required=True)
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and testing (default: 32)')
     parser.add_argument('--epochs', type=int, default=20, help='number of epochs for training (default: 20)')
-    parser.add_argument('--lr', type=float, default=2e-4, help='learning rate used for training (default: 4e-4)')
+    parser.add_argument('--lr', type=float, default=4e-4, help='learning rate used for training (default: 4e-4)')
     parser.add_argument('--use_gpu', action='store_true', help='use the gpu instead of the cpu')
     parser.add_argument('--early_stop', type=int, default=25,
                         help='number of worse validation loss before quitting training (default: 25)')

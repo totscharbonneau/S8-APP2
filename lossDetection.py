@@ -1,6 +1,6 @@
 from torch import Tensor
 from torch import nn
-
+import torch
 class LossDetection():
 
     def __call__(self,  input: Tensor, target: Tensor) -> Tensor:
@@ -8,7 +8,7 @@ class LossDetection():
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
 
-        mask = target[:, :, 0]
+        mask = target[:, :, 0] > 0.5
 
         mask2 = mask.unsqueeze(-1)
 
@@ -29,15 +29,16 @@ class LossDetection():
             positionLoss = (positionLoss * mask2).sum()/ mask.sum()
 
 
-            input3 = input[:, :,4:7][mask.int()]
-            target3 = target[:, :, 4][mask.int()]
+            input3 = input[:, :,4:7][mask]
+            target3 = target[:, :, 4][mask]
+
             classLoss = celoss.forward(input3,target3.long())
 
         else:
             positionLoss = 0
             classLoss = 0
-        print(f'Obj: {objectpresenceLoss.item():.4f}, Pos: {positionLoss.item():.4f}, Class: {classLoss.item():.4f}')
-        totalLoss = objectpresenceLoss + positionLoss + classLoss
+        # print(f'Class: {classLoss.item():.4f}')
+        totalLoss = objectpresenceLoss + 2*positionLoss + 8*classLoss
 
         return totalLoss
 

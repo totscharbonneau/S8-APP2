@@ -54,6 +54,7 @@ class AccuracyMetric(Metric):
         target = target.cpu().detach().numpy()
 
         prediction = (prediction > self.class_probability_threshold).astype(float)
+        good = (prediction == target).sum()
         self._good_count += (prediction == target).sum()
         self._total_count += prediction.size
 
